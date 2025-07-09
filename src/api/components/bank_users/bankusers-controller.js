@@ -21,7 +21,7 @@ async function getAllBankAcc(request, response, next) {
 
     // search based on balance in deposit feature
     // search must be bigger than or equal to 0 and balance max > min
-    if (balance_min >= 0 && balance_max > balance_min) {
+    if (balance_min >= 0 && balance_max >= balance_min) {
       const balance_range_user = await bankUsersService.searchRange(
         users,
         balance_min,
@@ -35,6 +35,33 @@ async function getAllBankAcc(request, response, next) {
         .json({ user_amount: balance_user_length, balance_range_user });
     }
 
+    if (balance_min >= 0 && !balance_max) {
+      const balance_range_user = await bankUsersService.searchRange(
+        users,
+        balance_min,
+        Infinity
+      );
+
+      balance_user_length = balance_range_user.length;
+
+      return response
+        .status(200)
+        .json({ user_amount: balance_user_length, balance_range_user });
+    }
+
+    if (balance_max >= 0 && !balance_min) {
+      const balance_range_user = await bankUsersService.searchRange(
+        users,
+        0,
+        balance_max
+      );
+
+      balance_user_length = balance_range_user.length;
+
+      return response
+        .status(200)
+        .json({ user_amount: balance_user_length, balance_range_user });
+    }
     return response.status(200).json(users);
   } catch (error) {
     return next(error);
