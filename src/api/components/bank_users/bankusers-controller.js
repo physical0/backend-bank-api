@@ -39,7 +39,7 @@ async function getAllBankAcc(request, response, next) {
       const balance_range_user = await bankUsersService.searchRange(
         users,
         balance_min,
-        Infinity
+        Number.MAX_SAFE_INTEGER
       );
 
       balance_user_length = balance_range_user.length;
