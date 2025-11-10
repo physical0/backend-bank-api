@@ -32,6 +32,7 @@ module.exports = (app) => {
   route.delete(
     '/delete-acc/:country_id',
     authenticationMiddleware,
+    celebrate(bankUsersValidator.deleteBankAcc),
     bankUsersController.deleteBankAcc
   );
 
@@ -39,7 +40,7 @@ module.exports = (app) => {
   route.put(
     '/:country_id/deposit',
     authenticationMiddleware,
-    celebrate(bankUsersValidator.insertMoney),
+    celebrate(bankUsersValidator.depositMoney),
     bankUsersController.depositMoney
   );
 
@@ -49,5 +50,29 @@ module.exports = (app) => {
     authenticationMiddleware,
     celebrate(bankUsersValidator.retrieveMoney),
     bankUsersController.retrieveMoney
+  );
+
+  // Lock bank account
+  route.put(
+    '/:country_id/lock',
+    authenticationMiddleware,
+    celebrate(bankUsersValidator.lockAccount),
+    bankUsersController.lockAccount
+  );
+
+  // Unlock bank account
+  route.put(
+    '/:country_id/unlock',
+    authenticationMiddleware,
+    celebrate(bankUsersValidator.unlockAccount),
+    bankUsersController.unlockAccount
+  );
+
+  // Check account status (including lock status)
+  route.get(
+    '/:country_id/status',
+    authenticationMiddleware,
+    celebrate(bankUsersValidator.getAccountStatus),
+    bankUsersController.getAccountStatus
   );
 };

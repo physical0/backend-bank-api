@@ -39,7 +39,7 @@ async function getAllBankAcc(request, response, next) {
       const balance_range_user = await bankUsersService.searchRange(
         users,
         balance_min,
-        Infinity
+        Number.MAX_SAFE_INTEGER
       );
 
       balance_user_length = balance_range_user.length;
@@ -53,7 +53,7 @@ async function getAllBankAcc(request, response, next) {
       const balance_range_user = await bankUsersService.searchRange(
         users,
         0,
-        balance_max
+        Number.MAX_SAFE_INTEGER
       );
 
       balance_user_length = balance_range_user.length;
@@ -266,12 +266,15 @@ async function depositMoney(request, response, next) {
     }
 
     // If password is not invalid or mistaken
-    const checkPassword = await bankUsersService.checkPassword(
+    const passwordResult = await bankUsersService.checkPassword(
       country_id,
       password
     );
-    if (!checkPassword) {
-      throw errorResponder(errorTypes.INVALID_CREDENTIALS, 'Wrong password');
+    if (!passwordResult.success) {
+      throw errorResponder(
+        errorTypes.INVALID_CREDENTIALS,
+        passwordResult.message
+      );
     }
 
     // If email has not been registered
@@ -347,12 +350,15 @@ async function retrieveMoney(request, response, next) {
     }
 
     // If password is not invalid or mistaken
-    const checkPassword = await bankUsersService.checkPassword(
+    const passwordResult = await bankUsersService.checkPassword(
       country_id,
       password
     );
-    if (!checkPassword) {
-      throw errorResponder(errorTypes.INVALID_CREDENTIALS, 'Wrong password');
+    if (!passwordResult.success) {
+      throw errorResponder(
+        errorTypes.INVALID_CREDENTIALS,
+        passwordResult.message
+      );
     }
 
     // If email has not been registered
@@ -401,6 +407,127 @@ async function retrieveMoney(request, response, next) {
   }
 }
 
+/**
+ * Handle lock account request
+ * @param {object} request - Express request object
+ * @param {object} response - Express response object
+ * @param {object} next - Express route middlewares
+ * @returns {object} Response object or pass an error to the next route
+ */
+async function lockAccount(request, response, next) {
+  try {
+    const country_id = request.params.country_id;
+    const reason = request.body.reason;
+    const admin_password = request.body.admin_password;
+
+    // Simple admin password check (in production, use proper admin authentication)
+    if (admin_password !== process.env.ADMIN_PASSWORD || !admin_password) {
+      throw errorResponder(errorTypes.FORBIDDEN, 'Invalid admin credentials');
+    }
+
+    // Check if user exists
+    const user = await bankUsersService.getBankAcc(country_id);
+    if (!user) {
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Bank account not found'
+      );
+    }
+
+    // Lock the account
+    const success = await bankUsersService.lockAccount(country_id, reason);
+    if (!success) {
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Failed to lock account'
+      );
+    }
+
+    return response.status(200).json({
+      country_id,
+      message: 'Account locked successfully',
+      reason,
+      locked_at: new Date(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Handle unlock account request
+ * @param {object} request - Express request object
+ * @param {object} response - Express response object
+ * @param {object} next - Express route middlewares
+ * @returns {object} Response object or pass an error to the next route
+ */
+async function unlockAccount(request, response, next) {
+  try {
+    const country_id = request.params.country_id;
+    const admin_password = request.body.admin_password;
+
+    // Simple admin password check (in production, use proper admin authentication)
+    if (admin_password !== process.env.ADMIN_PASSWORD || !admin_password) {
+      throw errorResponder(errorTypes.FORBIDDEN, 'Invalid admin credentials');
+    }
+
+    // Check if user exists
+    const user = await bankUsersService.getBankAcc(country_id);
+    if (!user) {
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Bank account not found'
+      );
+    }
+
+    // Unlock the account
+    const success = await bankUsersService.unlockAccount(country_id);
+    if (!success) {
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Failed to unlock account'
+      );
+    }
+
+    return response.status(200).json({
+      country_id,
+      message: 'Account unlocked successfully',
+      unlocked_at: new Date(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Handle get account status request
+ * @param {object} request - Express request object
+ * @param {object} response - Express response object
+ * @param {object} next - Express route middlewares
+ * @returns {object} Response object or pass an error to the next route
+ */
+async function getAccountStatus(request, response, next) {
+  try {
+    const country_id = request.params.country_id;
+
+    const accountStatus = await bankUsersService.checkAccountStatus(country_id);
+
+    if (!accountStatus.exists) {
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Bank account not found'
+      );
+    }
+
+    return response.status(200).json({
+      country_id,
+      account_status: accountStatus,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   getAllBankAcc,
   getBankAcc,
@@ -408,4 +535,7 @@ module.exports = {
   deleteBankAcc,
   depositMoney,
   retrieveMoney,
+  lockAccount,
+  unlockAccount,
+  getAccountStatus,
 };
